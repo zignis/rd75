@@ -1,0 +1,7 @@
+VIA_ENABLE = yes
+EEPROM_DRIVER = custom
+
+# features
+EXTRAKEY_ENABLE = yes
+RGB_MATRIX_ENABLE = yes
+ENCODER_ENABLE = yes

@@ -1,5 +1,5 @@
 /* Copyright 2021 QMK
- *
+*
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
@@ -16,14 +16,21 @@
 
 #pragma once
 
-#define HAL_USE_PWM TRUE
 
-#define ES32_PWM_USE_GP16C4T2   TRUE
+#define DYNAMIC_KEYMAP_EEPROM_MAX_ADDR  1151
+#define EEPROM_SIZE 1152
 
-#define BACKLIGHT_PWM_DRIVER    PWM_GP16C4T2
-#define BACKLIGHT_PWM_CHANNEL   3
+#define FEE_PAGE_SIZE (0x200)
+#define FEE_PAGE_COUNT (8)
 
-#define HAL_USE_USB TRUE
-#define HAL_USE_PAL TRUE
+#define FEE_PAGE_BASE_ADDRESS (0x1F000)
+#define FEE_MCU_FLASH_SIZE (0x1000)
 
-#include_next <halconf.h>
+#define EECONFIG_USER_DATA_SIZE 4
+
+#define EECONFIG_KB_DATA_SIZE 1
+
+#define TRANSIENT_EEPROM_SIZE 4096
+
+// use 4 layers
+#define DYNAMIC_KEYMAP_LAYER_COUNT 4
