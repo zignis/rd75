@@ -89,6 +89,7 @@ void keyboard_post_init_user(void) {
 #if LOGO_LED_ENABLE
     Keyboard_Info.Logo_On_Off = LOGO_LED_OFF;
     Keyboard_Info.Logo_Mode = LOGO_OFF_MODE;
+    Logo_Init();
 #endif
 }
 
