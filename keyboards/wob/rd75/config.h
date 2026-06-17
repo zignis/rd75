@@ -68,3 +68,13 @@
 #define RGB_MATRIX_LED_FLUSH_LIMIT 16
 #define RGB_MATRIX_MAXIMUM_BRIGHTNESS 160
 #define RGB_MATRIX_SLEEP
+
+/*
+ * reserve 3 bytes for capsLock indicator color (hsv)
+ */
+#define VIA_EEPROM_CUSTOM_CONFIG_SIZE 3
+
+// default capslock indicator color
+#define CAPS_LOCK_COLOR_DEFAULT_HUE 16
+#define CAPS_LOCK_COLOR_DEFAULT_SAT 255
+#define CAPS_LOCK_COLOR_DEFAULT_VAL 255

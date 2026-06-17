@@ -229,12 +229,12 @@ __attribute__((weak)) void via_custom_value_command(uint8_t *data, uint8_t lengt
     // data = [ command_id, channel_id, value_id, value_data ]
     uint8_t *channel_id = &(data[1]);
 
-#if defined(BACKLIGHT_ENABLE)
     if (*channel_id == id_qmk_backlight_channel) {
+#if defined(BACKLIGHT_ENABLE)
         via_qmk_backlight_command(data, length);
-        return;
-    }
-#endif // BACKLIGHT_ENABLE
+#endif
+        return; // noop
+    } // BACKLIGHT_ENABLE
 
 #if defined(RGBLIGHT_ENABLE)
     if (*channel_id == id_qmk_rgblight_channel) {
@@ -326,14 +326,14 @@ __attribute__((weak)) bool via_command_kb(uint8_t *data, uint8_t length) {
 //void led_streaming(uint8_t *data) //Stream data from HID Packets to Keyboard.
 //{
 //    uint8_t index = data[1];
-//    uint8_t numberofleds = data[2]; 
+//    uint8_t numberofleds = data[2];
 //
 //    if(numberofleds >= 10)
 //    {
 //        packet[1] = DEVICE_ERROR_LEDS;
 //        raw_hid_send(packet,32);
-//        return; 
-//    } 
+//        return;
+//    }
 //
 //    for (uint8_t i = 0; i < numberofleds; i++)
 //    {
@@ -596,7 +596,7 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
             Emi_Read_Data(data, length);
             return;
         }
-                                  
+
         default: {
             // The command ID is not known
             // Return the unhandled state

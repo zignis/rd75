@@ -16,10 +16,30 @@
  */
 
 #include "../../lib/rdr_lib/rdr_common.h"
+#include "via.h"
+#include "eeprom.h"
+#include "color.h"
 
-void matrix_io_delay(void)                                          {}
-void matrix_output_select_delay(void)                               {}
-void matrix_output_unselect_delay(uint8_t line, bool key_pressed)  {}
+// capslock indicator color
+// layout: [hue, sat, val]
+#define CAPS_EEPROM_ADDR_HUE ((void *)(VIA_EEPROM_CUSTOM_CONFIG_ADDR + 0))
+#define CAPS_EEPROM_ADDR_SAT ((void *)(VIA_EEPROM_CUSTOM_CONFIG_ADDR + 1))
+#define CAPS_EEPROM_ADDR_VAL ((void *)(VIA_EEPROM_CUSTOM_CONFIG_ADDR + 2))
+
+// VIA custom values
+// 1 = Caps Lock color (hue, saturation)
+// 2 = Caps Lock brightness
+#define VIA_CAPSLOCK_COLOR_VALUE_ID      1
+#define VIA_CAPSLOCK_BRIGHTNESS_VALUE_ID 2
+
+// runtime cache
+static uint8_t caps_lock_hue = CAPS_LOCK_COLOR_DEFAULT_HUE;
+static uint8_t caps_lock_sat = CAPS_LOCK_COLOR_DEFAULT_SAT;
+static uint8_t caps_lock_val = CAPS_LOCK_COLOR_DEFAULT_VAL;
+
+void matrix_io_delay(void) {}
+void matrix_output_select_delay(void) {}
+void matrix_output_unselect_delay(uint8_t line, bool key_pressed) {}
 
 // LED layout configuration
 led_config_t g_led_config = { {
@@ -51,12 +71,86 @@ led_config_t g_led_config = { {
     0, 0, 0, 0,
 } };
 
+// save color to eeprom
+static void caps_lock_color_save(void) {
+    eeprom_update_byte(CAPS_EEPROM_ADDR_HUE, caps_lock_hue);
+    eeprom_update_byte(CAPS_EEPROM_ADDR_SAT, caps_lock_sat);
+    eeprom_update_byte(CAPS_EEPROM_ADDR_VAL, caps_lock_val);
+}
+
+// load persisted color from eeprom
+static void caps_lock_color_load(void) {
+    if (via_eeprom_is_valid()) {
+        caps_lock_hue = eeprom_read_byte(CAPS_EEPROM_ADDR_HUE);
+        caps_lock_sat = eeprom_read_byte(CAPS_EEPROM_ADDR_SAT);
+        caps_lock_val = eeprom_read_byte(CAPS_EEPROM_ADDR_VAL);
+    } else {
+        caps_lock_color_save();
+    }
+}
+
+void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
+    uint8_t *command_id = &(data[0]);
+    uint8_t *channel_id = &(data[1]);
+    uint8_t *value_id_and_data = &(data[2]); // [value_id, d0, d1, …]
+
+    if (*channel_id != id_custom_channel) {
+        *command_id = id_unhandled;
+        return;
+    }
+
+    uint8_t *value_id   = &(value_id_and_data[0]);
+    uint8_t *value_data = &(value_id_and_data[1]);
+
+    switch (*command_id) {
+        case id_custom_get_value:
+            switch (*value_id) {
+                case VIA_CAPSLOCK_COLOR_VALUE_ID:
+                    value_data[0] = caps_lock_hue;
+                    value_data[1] = caps_lock_sat;
+                    break;
+                case VIA_CAPSLOCK_BRIGHTNESS_VALUE_ID:
+                    value_data[0] = caps_lock_val;
+                    break;
+                default:
+                    *command_id = id_unhandled;
+                    break;
+            }
+            break;
+        //
+        case id_custom_set_value:
+            switch (*value_id) {
+                case VIA_CAPSLOCK_COLOR_VALUE_ID:
+                    caps_lock_hue = value_data[0];
+                    caps_lock_sat = value_data[1];
+                    break;
+                case VIA_CAPSLOCK_BRIGHTNESS_VALUE_ID:
+                    caps_lock_val = value_data[0];
+                    break;
+                default:
+                    *command_id = id_unhandled;
+                    break;
+            }
+            break;
+        //
+        case id_custom_save:
+            caps_lock_color_save();
+            break;
+        //
+        default:
+            *command_id = id_unhandled;
+            break;
+    }
+}
+
 bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     User_Led_Show();
 
     // capslock indicator
     if (host_keyboard_led_state().caps_lock) {
-        rgb_matrix_set_color(45, 96, 24, 0);
+        HSV hsv = {caps_lock_hue, caps_lock_sat, caps_lock_val};
+        RGB rgb = hsv_to_rgb(hsv);
+        rgb_matrix_set_color(LED_CAP_INDEX, rgb.r, rgb.g, rgb.b);
     }
 
     return false;
@@ -82,6 +176,7 @@ void board_init(void) {
 
 void keyboard_post_init_user(void) {
     User_Keyboard_Post_Init();
+    caps_lock_color_load();
     rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
     rgb_matrix_sethsv_noeeprom(HSV_OFF);
 
