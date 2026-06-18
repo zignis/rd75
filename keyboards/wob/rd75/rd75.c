@@ -178,13 +178,11 @@ void keyboard_post_init_user(void) {
     User_Keyboard_Post_Init();
     caps_lock_color_load();
 
-//    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
-//    rgb_matrix_sethsv_noeeprom(HSV_OFF);
-
 #if LOGO_LED_ENABLE
-//    Keyboard_Info.Logo_On_Off = LOGO_LED_OFF;
-//    Keyboard_Info.Logo_Mode = LOGO_OFF_MODE;
+    Keyboard_Info.Logo_On_Off = LOGO_LED_OFF;
+    Keyboard_Info.Logo_Mode = LOGO_OFF_MODE;
     Logo_Init();
+    Save_Flash_Set();
 #endif
 }
 
