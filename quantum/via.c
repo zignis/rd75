@@ -68,7 +68,7 @@ bool via_eeprom_is_valid(void) {
     uint8_t magic1 = ((p[5] & 0x0F) << 4) | (p[6] & 0x0F);
     uint8_t magic2 = ((p[8] & 0x0F) << 4) | (p[9] & 0x0F);
 
-    return (eeprom_read_byte((void *)VIA_EEPROM_MAGIC_ADDR + 0) == magic0 && eeprom_read_byte((void *)VIA_EEPROM_MAGIC_ADDR + 1) == magic1 && eeprom_read_byte((void *)VIA_EEPROM_MAGIC_ADDR + 2) == magic2);
+    return (eeprom_read_byte((uint8_t *)VIA_EEPROM_MAGIC_ADDR + 0) == magic0 && eeprom_read_byte((uint8_t *)VIA_EEPROM_MAGIC_ADDR + 1) == magic1 && eeprom_read_byte((uint8_t *)VIA_EEPROM_MAGIC_ADDR + 2) == magic2);
 }
 
 // Sets VIA/keyboard level usage of EEPROM to valid/invalid
@@ -79,9 +79,9 @@ void via_eeprom_set_valid(bool valid) {
     uint8_t magic1 = ((p[5] & 0x0F) << 4) | (p[6] & 0x0F);
     uint8_t magic2 = ((p[8] & 0x0F) << 4) | (p[9] & 0x0F);
 
-    eeprom_update_byte((void *)VIA_EEPROM_MAGIC_ADDR + 0, valid ? magic0 : 0xFF);
-    eeprom_update_byte((void *)VIA_EEPROM_MAGIC_ADDR + 1, valid ? magic1 : 0xFF);
-    eeprom_update_byte((void *)VIA_EEPROM_MAGIC_ADDR + 2, valid ? magic2 : 0xFF);
+    eeprom_update_byte((uint8_t *)VIA_EEPROM_MAGIC_ADDR + 0, valid ? magic0 : 0xFF);
+    eeprom_update_byte((uint8_t *)VIA_EEPROM_MAGIC_ADDR + 1, valid ? magic1 : 0xFF);
+    eeprom_update_byte((uint8_t *)VIA_EEPROM_MAGIC_ADDR + 2, valid ? magic2 : 0xFF);
 }
 
 // Override this at the keyboard code level to check
@@ -124,7 +124,7 @@ void eeconfig_init_via(void) {
 uint32_t via_get_layout_options(void) {
     uint32_t value = 0;
     // Start at the most significant byte
-    void *source = (void *)(VIA_EEPROM_LAYOUT_OPTIONS_ADDR);
+    uint8_t *source = (uint8_t *)(VIA_EEPROM_LAYOUT_OPTIONS_ADDR);
     for (uint8_t i = 0; i < VIA_EEPROM_LAYOUT_OPTIONS_SIZE; i++) {
         value = value << 8;
         value |= eeprom_read_byte(source);
@@ -138,7 +138,7 @@ __attribute__((weak)) void via_set_layout_options_kb(uint32_t value) {}
 void via_set_layout_options(uint32_t value) {
     via_set_layout_options_kb(value);
     // Start at the least significant byte
-    void *target = (void *)(VIA_EEPROM_LAYOUT_OPTIONS_ADDR + VIA_EEPROM_LAYOUT_OPTIONS_SIZE - 1);
+    uint8_t *target = (uint8_t *)(VIA_EEPROM_LAYOUT_OPTIONS_ADDR + VIA_EEPROM_LAYOUT_OPTIONS_SIZE - 1);
     for (uint8_t i = 0; i < VIA_EEPROM_LAYOUT_OPTIONS_SIZE; i++) {
         eeprom_update_byte(target, value & 0xFF);
         value = value >> 8;
@@ -248,19 +248,6 @@ __attribute__((weak)) void via_custom_value_command(uint8_t *data, uint8_t lengt
         via_qmk_rgb_matrix_command(data, length);
         return;
     }
-#if LOGO_LED_ENABLE
-    else if (*channel_id == id_qmk_rgblight_channel) {   //用户自定义 VIA 修改 LOGO灯 占用 backlight接口
-        User_Via_Qmk_Logo_Command(data, length);
-        return;
-    }
-#endif
-#if SIDE_LED_ENABLE
-    else if (*channel_id == id_qmk_audio_channel) {   //用户自定义 VIA 修改 SIDE灯 占用 rgblight接口
-        User_Via_Qmk_Side_Command(data, length);
-        return;
-    }
-#endif
-
 #endif // RGB_MATRIX_ENABLE
 
 #if defined(LED_MATRIX_ENABLE)
@@ -501,8 +488,7 @@ void raw_hid_receive(uint8_t *data, uint8_t length) {
         }
 #ifdef VIA_EEPROM_ALLOW_RESET
         case id_eeprom_reset: {
-            via_eeprom_set_valid(false);
-            eeconfig_init_via();
+            eeconfig_init();
             break;
         }
 #endif

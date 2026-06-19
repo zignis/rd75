@@ -70,9 +70,14 @@
 #define RGB_MATRIX_SLEEP
 
 /*
- * reserve 3 bytes for capsLock indicator color (hsv)
+ * custom eeprom block sizes
  */
-#define VIA_EEPROM_CUSTOM_CONFIG_SIZE 3
+#define CAPS_LOCK_CONFIG_SIZE 3
+#define LOGO_CONFIG_SIZE 6
+#define SIDE_CONFIG_SIZE 6 // unused
+
+// reserve bytes for our config
+#define VIA_EEPROM_CUSTOM_CONFIG_SIZE (CAPS_LOCK_CONFIG_SIZE + LOGO_CONFIG_SIZE + SIDE_CONFIG_SIZE)
 
 // default capslock indicator color
 #define CAPS_LOCK_COLOR_DEFAULT_HUE 16

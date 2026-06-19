@@ -22,13 +22,34 @@
 
 // capslock indicator color
 // layout: [hue, sat, val]
-#define CAPS_EEPROM_ADDR_HUE ((void *)(VIA_EEPROM_CUSTOM_CONFIG_ADDR + 0))
-#define CAPS_EEPROM_ADDR_SAT ((void *)(VIA_EEPROM_CUSTOM_CONFIG_ADDR + 1))
-#define CAPS_EEPROM_ADDR_VAL ((void *)(VIA_EEPROM_CUSTOM_CONFIG_ADDR + 2))
+// EEPROM block layout
+typedef struct {
+    uint8_t caps_lock_hue;
+    uint8_t caps_lock_sat;
+    uint8_t caps_lock_val;
+
+    uint8_t logo_on_off;
+    uint8_t logo_mode;
+    uint8_t logo_colour;
+    uint8_t logo_saturation;
+    uint8_t logo_brightness;
+    uint8_t logo_speed;
+
+    // side LEDs are not present on RD75
+    uint8_t side_on_off;
+    uint8_t side_mode;
+    uint8_t side_colour;
+    uint8_t side_saturation;
+    uint8_t side_brightness;
+    uint8_t side_speed;
+} rd75_custom_config_t;
+
+// pointer to our config space in EEPROM
+#define RD75_EEPROM_CONF_ADDR ((rd75_custom_config_t *)VIA_EEPROM_CUSTOM_CONFIG_ADDR)
 
 // VIA custom values
-// 1 = Caps Lock color (hue, saturation)
-// 2 = Caps Lock brightness
+// 1 = capslock color (hue, saturation)
+// 2 = capslock brightness
 #define VIA_CAPSLOCK_COLOR_VALUE_ID      1
 #define VIA_CAPSLOCK_BRIGHTNESS_VALUE_ID 2
 
@@ -73,19 +94,111 @@ led_config_t g_led_config = { {
 
 // save color to eeprom
 static void caps_lock_color_save(void) {
-    eeprom_update_byte(CAPS_EEPROM_ADDR_HUE, caps_lock_hue);
-    eeprom_update_byte(CAPS_EEPROM_ADDR_SAT, caps_lock_sat);
-    eeprom_update_byte(CAPS_EEPROM_ADDR_VAL, caps_lock_val);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->caps_lock_hue, caps_lock_hue);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->caps_lock_sat, caps_lock_sat);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->caps_lock_val, caps_lock_val);
 }
 
-// load persisted color from eeprom
-static void caps_lock_color_load(void) {
+#if LOGO_LED_ENABLE
+static void logo_settings_save(void) {
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->logo_on_off, Keyboard_Info.Logo_On_Off);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->logo_mode, Keyboard_Info.Logo_Mode);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->logo_colour, Keyboard_Info.Logo_Colour);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->logo_saturation, Keyboard_Info.Logo_Saturation);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->logo_brightness, Keyboard_Info.Logo_Brightness);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->logo_speed, Keyboard_Info.Logo_Speed);
+}
+#endif
+
+#if SIDE_LED_ENABLE
+static void side_settings_save(void) {
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->side_on_off, Keyboard_Info.Side_On_Off);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->side_mode, Keyboard_Info.Side_Mode);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->side_colour, Keyboard_Info.Side_Colour);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->side_saturation, Keyboard_Info.Side_Saturation);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->side_brightness, Keyboard_Info.Side_Brightness);
+    eeprom_update_byte(&RD75_EEPROM_CONF_ADDR->side_speed, Keyboard_Info.Side_Speed);
+}
+#endif
+
+// init capslock color when via resets eeprom or eeconfig is re-initialized
+void eeconfig_init_kb(void) {
+    caps_lock_hue = CAPS_LOCK_COLOR_DEFAULT_HUE;
+    caps_lock_sat = CAPS_LOCK_COLOR_DEFAULT_SAT;
+    caps_lock_val = CAPS_LOCK_COLOR_DEFAULT_VAL;
+    caps_lock_color_save();
+
+#if LOGO_LED_ENABLE
+    Keyboard_Info.Logo_On_Off = INIT_LOGO_ON_OFF;
+    Keyboard_Info.Logo_Mode = INIT_LOGO_MODE;
+    Keyboard_Info.Logo_Colour = INIT_LOGO_COLOUR;
+    Keyboard_Info.Logo_Saturation = INIT_LOGO_SATURATION;
+    Keyboard_Info.Logo_Brightness = INIT_LOGO_BRIGHTNESS;
+    Keyboard_Info.Logo_Speed = INIT_LOGO_SPEED;
+    logo_settings_save();
+#endif
+
+#if SIDE_LED_ENABLE
+    Keyboard_Info.Side_On_Off = INIT_SIDE_ON_OFF;
+    Keyboard_Info.Side_Mode = INIT_SIDE_MODE;
+    Keyboard_Info.Side_Colour = INIT_SIDE_COLOUR;
+    Keyboard_Info.Side_Saturation = INIT_SIDE_SATURATION;
+    Keyboard_Info.Side_Brightness = INIT_SIDE_BRIGHTNESS;
+    Keyboard_Info.Side_Speed = INIT_SIDE_SPEED;
+    side_settings_save();
+#endif
+
+    eeconfig_init_user();
+}
+
+// override via_init_kb to handle initialization when VIA EEPROM is newly created
+void via_init_kb(void) {
     if (via_eeprom_is_valid()) {
-        caps_lock_hue = eeprom_read_byte(CAPS_EEPROM_ADDR_HUE);
-        caps_lock_sat = eeprom_read_byte(CAPS_EEPROM_ADDR_SAT);
-        caps_lock_val = eeprom_read_byte(CAPS_EEPROM_ADDR_VAL);
+        caps_lock_hue = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->caps_lock_hue);
+        caps_lock_sat = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->caps_lock_sat);
+        caps_lock_val = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->caps_lock_val);
+
+#if LOGO_LED_ENABLE
+        Keyboard_Info.Logo_On_Off = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->logo_on_off);
+        Keyboard_Info.Logo_Mode = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->logo_mode);
+        Keyboard_Info.Logo_Colour = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->logo_colour);
+        Keyboard_Info.Logo_Saturation = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->logo_saturation);
+        Keyboard_Info.Logo_Brightness = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->logo_brightness);
+        Keyboard_Info.Logo_Speed = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->logo_speed);
+#endif
+#if SIDE_LED_ENABLE
+        Keyboard_Info.Side_On_Off = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->side_on_off);
+        Keyboard_Info.Side_Mode = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->side_mode);
+        Keyboard_Info.Side_Colour = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->side_colour);
+        Keyboard_Info.Side_Saturation = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->side_saturation);
+        Keyboard_Info.Side_Brightness = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->side_brightness);
+        Keyboard_Info.Side_Speed = eeprom_read_byte(&RD75_EEPROM_CONF_ADDR->side_speed);
+#endif
     } else {
+        caps_lock_hue = CAPS_LOCK_COLOR_DEFAULT_HUE;
+        caps_lock_sat = CAPS_LOCK_COLOR_DEFAULT_SAT;
+        caps_lock_val = CAPS_LOCK_COLOR_DEFAULT_VAL;
         caps_lock_color_save();
+
+#if LOGO_LED_ENABLE
+        Keyboard_Info.Logo_On_Off = INIT_LOGO_ON_OFF;
+        Keyboard_Info.Logo_Mode = INIT_LOGO_MODE;
+        Keyboard_Info.Logo_Colour = INIT_LOGO_COLOUR;
+        Keyboard_Info.Logo_Saturation = INIT_LOGO_SATURATION;
+        Keyboard_Info.Logo_Brightness = INIT_LOGO_BRIGHTNESS;
+        Keyboard_Info.Logo_Speed = INIT_LOGO_SPEED;
+        logo_settings_save();
+#endif
+
+#if SIDE_LED_ENABLE
+        Keyboard_Info.Side_On_Off = INIT_SIDE_ON_OFF;
+        Keyboard_Info.Side_Mode = INIT_SIDE_MODE;
+        Keyboard_Info.Side_Colour = INIT_SIDE_COLOUR;
+        Keyboard_Info.Side_Saturation = INIT_SIDE_SATURATION;
+        Keyboard_Info.Side_Brightness = INIT_SIDE_BRIGHTNESS;
+        Keyboard_Info.Side_Speed = INIT_SIDE_SPEED;
+        side_settings_save();
+#endif
     }
 }
 
@@ -93,6 +206,30 @@ void via_custom_value_command_kb(uint8_t *data, uint8_t length) {
     uint8_t *command_id = &(data[0]);
     uint8_t *channel_id = &(data[1]);
     uint8_t *value_id_and_data = &(data[2]); // [value_id, d0, d1, …]
+
+#if LOGO_LED_ENABLE
+    if (*channel_id == id_qmk_rgblight_channel) {
+        uint8_t orig_cmd = *command_id;
+        User_Via_Qmk_Logo_Command(data, length);
+        if (orig_cmd == id_custom_save) {
+            logo_settings_save();
+            *command_id = id_custom_save;
+        }
+        return;
+    }
+#endif
+
+#if SIDE_LED_ENABLE
+    if (*channel_id == id_qmk_audio_channel) {
+        uint8_t orig_cmd = *command_id;
+        User_Via_Qmk_Side_Command(data, length);
+        if (orig_cmd == id_custom_save) {
+            side_settings_save();
+            *command_id = id_custom_save;
+        }
+        return;
+    }
+#endif
 
     if (*channel_id != id_custom_channel) {
         *command_id = id_unhandled;
@@ -176,13 +313,9 @@ void board_init(void) {
 
 void keyboard_post_init_user(void) {
     User_Keyboard_Post_Init();
-    caps_lock_color_load();
 
 #if LOGO_LED_ENABLE
-    Keyboard_Info.Logo_On_Off = LOGO_LED_OFF;
-    Keyboard_Info.Logo_Mode = LOGO_OFF_MODE;
     Logo_Init();
-    Save_Flash_Set();
 #endif
 }
 
@@ -467,7 +600,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Keyboard_Info.Logo_On_Off = LOGO_LED_OFF;
                 }
                 Logo_Init();
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -485,7 +618,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
 
                 Logo_Init();
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -503,7 +636,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
 
                 Logo_Init();
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -524,7 +657,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                         (Keyboard_Info.Logo_Colour + COLOUR_LEVEL) - LOGO_MAX_COLOUR;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -545,7 +678,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                         (LOGO_MAX_COLOUR - COLOUR_LEVEL) + Keyboard_Info.Logo_Colour;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -564,7 +697,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Keyboard_Info.Logo_Saturation = LOGO_MAX_SATURATION;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -583,7 +716,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Keyboard_Info.Logo_Saturation = LOGO_MIN_SATURATION;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -603,7 +736,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Led_Point_Count = 3;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -623,7 +756,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Led_Point_Count = 3;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -643,7 +776,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Led_Point_Count = 3;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 
@@ -663,7 +796,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                     Led_Point_Count = 3;
                 }
 
-                Save_Flash_Set();
+                logo_settings_save();
             }
             return true;
 #endif // LOGO_LED_ENABLE
